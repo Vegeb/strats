@@ -22,8 +22,8 @@ class MovingAverageCrossStrategy(Strategy):
     short_window - Lookback period for short moving average.
     long_window - Lookback period for long moving average."""
 
-    def __init__(self, symbol, bars, short_window=100, long_window=400):
-        self.symbol = symbol
+    def __init__(self, bars, short_window=100, long_window=400):
+        
         self.bars = bars
 
         self.short_window = short_window
@@ -32,13 +32,14 @@ class MovingAverageCrossStrategy(Strategy):
     def generate_signals(self):
         """Returns the DataFrame of symbols containing the signals
         to go long, short or hold (1, -1 or 0)."""
-        signals = pd.DataFrame(index=self.bars.index)
-        signals['signal'] = 0.0
+        signals = {}
+        signals['signal'] = pd.DataFrame(0,index=self.bars.index, columns=self.bars.columns)
+        
 
         # Create the set of short and long simple moving averages over the 
         # respective periods
-        signals['short_mavg'] = pd.rolling_mean(self.bars['closePrice'], self.short_window, min_periods=1)
-        signals['long_mavg'] = pd.rolling_mean(self.bars['closePrice'], self.long_window, min_periods=1)
+        signals['short_mavg'] = self.bars.rolling(window=self.short_window).mean()
+        signals['long_mavg'] = self.bars.rolling(window=self.long_window).mean()
 
         # Create a 'signal' (invested or not invested) when the short moving average crosses the long
         # moving average, but only for the period greater than the shortest moving average window
@@ -60,8 +61,8 @@ class MarketOnClosePortfolio(Portfolio):
     signals - A pandas DataFrame of signals (1, 0, -1) for each symbol.
     initial_capital - The amount in cash at the start of the portfolio."""
 
-    def __init__(self, symbol, bars, signals, initial_capital=100000.0):
-        self.symbol = symbol        
+    def __init__(self, bars, signals, initial_capital=100000.0):
+                
         self.bars = bars
         self.signals = signals
         self.initial_capital = float(initial_capital)
@@ -74,13 +75,13 @@ class MarketOnClosePortfolio(Portfolio):
                     
     def backtest_portfolio(self):
         pf = pd.DataFrame(index=self.bars.index)
-        pf['holdings'] = self.positions.mul(self.bars['closePrice'], axis='index')
+        pf['holdings'] = self.positions.mul(self.bars, axis='index')
         pf['cash'] = self.initial_capital - pf['holdings'].cumsum()
-        pf['total'] = pf['cash'] + self.positions[self.symbol].cumsum() * self.bars['closePrice']
+        pf['total'] = pf['cash'] + self.positions[self.symbol].cumsum() * self.bars
         pf['returns'] = pf['total'].pct_change()
         return pf
 
-
+"""
 if __name__ == "__main__":        
     engine = create_engine('mysql://root:testdb@127.0.0.1/tstest?charset=utf8')
     
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     #creating bars input
     symbol = '000001.XSHE'
     xx = xx.set_index('tradeDate')
-    bars = xx[-3000:]
+    bars = xx[-3000:].closePrice
     
     # Create a Moving Average Cross Strategy instance with a short moving
     # average window of 100 days and a long window of 400 days
@@ -144,3 +145,4 @@ if __name__ == "__main__":
 
     # Plot the figure
     fig.show()
+"""
